@@ -1,0 +1,8 @@
+Flask
+requests
+azure-storage-blob
+flask-cors
+flask-accept
+matplotlib
+opencv-python
+pandas
