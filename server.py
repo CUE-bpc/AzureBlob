@@ -186,7 +186,7 @@ def ocr_stand():
     azure_storage_endpoint = "https://" + storage_account_name + ".blob.core.windows.net/"
 
     # Convert temp_img to png byte stream
-    _, temp_img_png = cv2.imencode('.png', temp_img)
+    _, temp_img_png = cv2.imencode('.png', img_crop_resized)
     png = temp_img_png.tobytes()
 
     # Create a new instance of BlobServiceClient to interact with the blob service
