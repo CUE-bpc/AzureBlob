@@ -25,8 +25,7 @@ def hello_world():  # put application's code here
 
 @app.route('/upload-ocr', methods=['POST'])
 def upload_ocr():
-    return "True"
-
+    return 'To be implemented.'
 
 # Endpoint to upload image to Azure Blob Storage
 # Takes base64 string, converts to PNG, uploads to Azure Blob Storage and returns URL
@@ -79,8 +78,7 @@ def azure_upload():
     return blob_url
 
 
-# TODO: Combine both Endpoints into one
-# TODO: Upload changed image to Blob Storage using above function
+# TODO: Combine both Endpoints into one (see above '/upload-ocr')
 # Endpoint to mark Zählerstand in Zaehlerstand.png image and to receive recognized Zählerstand
 # See also /azure-upload
 @app.route('/ocr-stand', methods=['GET'])
@@ -171,6 +169,37 @@ def ocr_stand():
             'Content-Type': 'application/octet-stream'}).json()
 
     #print('Der Zählerstand ist {}'.format(computer_vision_resp['readResult']['content']))
+
+    # --- Upload new image to Blob Storage ---
+
+    # Configuration details (ideally these should be stored in environment variables or a config file)
+    storage_account_key = os.getenv('STORAGE_ACCOUNT_KEY')
+    storage_account_name = os.getenv('STORAGE_ACCOUNT_NAME')
+    connection_string = "DefaultEndpointsProtocol=https" + \
+                        ";AccountName=" + storage_account_name + \
+                        ";AccountKey=" + storage_account_key
+
+    container_name = "images"
+    filename = "zaehlerstand.png"  # Name of the file to be uploaded
+
+    # Azure Storage Blob endpoint
+    azure_storage_endpoint = "https://" + storage_account_name + ".blob.core.windows.net/"
+
+    # Convert temp_img to png byte stream
+    _, temp_img_png = cv2.imencode('.png', temp_img)
+    png = temp_img_png.tobytes()
+
+    # Create a new instance of BlobServiceClient to interact with the blob service
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=filename)
+
+    # Upload the image to the specified container in Azure Blob Storage
+    blob_client.upload_blob(png, blob_type="BlockBlob", overwrite=True)
+
+    # Get the URL of the uploaded blob
+    blob_url = azure_storage_endpoint + container_name + "/" + blob_client.get_blob_properties().name
+
+    # --- END ---
 
     # Return Zählerstand
     return computer_vision_resp['readResult']['content']
