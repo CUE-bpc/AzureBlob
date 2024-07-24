@@ -78,7 +78,7 @@ def azure_upload():
     return blob_url
 
 
-# TODO: Combine both Endpoints into one (see above '/upload-ocr')
+# TODO: Error detection (kein Zählerstand erkannt), Bild trotzdem hochladen etc.
 # Endpoint to mark Zählerstand in Zaehlerstand.png image and to receive recognized Zählerstand
 # See also /azure-upload
 @app.route('/ocr-stand', methods=['GET'])
