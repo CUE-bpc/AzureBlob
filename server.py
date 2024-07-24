@@ -79,6 +79,7 @@ def azure_upload():
 
 
 # TODO: Error detection (kein Zählerstand erkannt), Bild trotzdem hochladen etc.
+# TODO: azure_upload und ocr_stand kombinieren in einer Funktion, s.o. upload_ocr
 # Endpoint to mark Zählerstand in Zaehlerstand.png image and to receive recognized Zählerstand
 # See also /azure-upload
 @app.route('/ocr-stand', methods=['GET'])
@@ -186,7 +187,7 @@ def ocr_stand():
     azure_storage_endpoint = "https://" + storage_account_name + ".blob.core.windows.net/"
 
     # Convert temp_img to png byte stream
-    _, temp_img_png = cv2.imencode('.png', img_crop_resized)
+    _, temp_img_png = cv2.imencode('.png', temp_img)
     png = temp_img_png.tobytes()
 
     # Create a new instance of BlobServiceClient to interact with the blob service
