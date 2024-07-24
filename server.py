@@ -1,5 +1,6 @@
+import json
 import os
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
 import urllib.parse
 from flask_cors import CORS
 import base64
@@ -202,8 +203,14 @@ def ocr_stand():
 
     # --- END ---
 
-    # Return Zählerstand
-    return computer_vision_resp['readResult']['content']
+    # Return Zählerstand and its image
+
+    result = {
+        "stand": computer_vision_resp['readResult']['content'],
+        "image_url": image_url
+    }
+
+    return json.dumps(result)
 
 if __name__ == '__main__':
     app.run()
