@@ -1,6 +1,8 @@
 import imghdr
 import json
 import os
+from io import BytesIO
+
 from flask import Flask, jsonify, request
 import urllib.parse
 from flask_cors import CORS
@@ -15,9 +17,21 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from numpy import asarray
+from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
+from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes
+from msrest.authentication import CognitiveServicesCredentials
+
+from array import array
+import os
+from PIL import Image
+import sys
+import time
 
 app = Flask(__name__, static_folder='', static_url_path='')
 cors = CORS(app)
+
+
 # kleiner test
 
 @app.route('/')
@@ -29,7 +43,6 @@ def hello_world():  # put application's code here
 # TODO: Fix Error "{'code': 'BadRequestImageFormat', 'message': 'Bad Request Image Format'}" by custom vision API
 @app.route('/upload-ocr', methods=['POST'])
 def upload_ocr():
-
     # These env vars are defined in Azure Web App under Settings -> Environment Variables
     custom_vision_imgurl = os.getenv('CUSTOM_VISION_IMGURL')
     custom_vision_prediction_key = os.getenv('CUSTOM_VISION_PREDICTION_KEY')
@@ -180,6 +193,7 @@ def upload_ocr():
 
     return json.dumps(result)
 
+
 # Endpoint to upload image to Azure Blob Storage
 # Takes base64 string, converts to PNG, uploads to Azure Blob Storage and returns URL
 # Call with POST request to /azure-upload with base64 string in the request body
@@ -207,7 +221,7 @@ def azure_upload():
         base_64_string_data = base_64_string_data[len("data:image/png;base64,"):]
 
     container_name = "images"
-    filename = "zaehlerstand.png" # Name of the file to be uploaded
+    filename = "zaehlerstand.png"  # Name of the file to be uploaded
 
     # Debug: print the received base64 string
     print("Received base64 string:", base_64_string_data)
@@ -237,7 +251,6 @@ def azure_upload():
 # See also /azure-upload
 @app.route('/ocr-stand', methods=['GET'])
 def ocr_stand():
-
     custom_vision_imgurl = os.getenv('CUSTOM_VISION_IMGURL')
     custom_vision_prediction_key = os.getenv('CUSTOM_VISION_PREDICTION_KEY')
 
@@ -368,6 +381,61 @@ def ocr_stand():
     }
 
     return json.dumps(result)
+
+
+# Receives link to image (uploaded to Azure beforehand), use ?url=https://....
+@app.route('/ocr-text', methods=['GET'])
+def ocr_text():
+    # Get the URL parameter
+    image_url = request.args.get('url')
+
+    if not image_url:
+        return jsonify({"error": "URL parameter is missing"}), 400
+
+    # Download the image from the URL
+    with urllib.request.urlopen(image_url) as response:
+        data = response.read()
+
+    # decode the image file as a cv2 image, useful for later to display results
+    img = cv2.imdecode(np.array(bytearray(data), dtype='uint8'), cv2.IMREAD_COLOR)
+
+    try:
+
+        computer_vision_imgurl = 'https://germanywestcentral.api.cognitive.microsoft.com/computervision/imageanalysis:analyze?api-version=2023-02-01-preview&features=read'
+
+        custom_vision_prediction_key = os.getenv('CUSTOM_VISION_PREDICTION_KEY')
+
+        # make a call to the computer_vision_imgurl
+        computer_vision_resp = requests.post(
+            url=computer_vision_imgurl,
+            data=img,
+            headers={
+                'Ocp-Apim-Subscription-Key': custom_vision_prediction_key,
+                'Content-Type': 'application/octet-stream'}).json()
+
+        # Call the "GET" API and wait for it to retrieve the results
+        while True:
+            read_result = computer_vision_resp
+            print(read_result)
+            if read_result.status not in ['notStarted', 'running']:
+                break
+            time.sleep(1)
+
+            # Extract the detected text, line by line
+            text_lines = []
+
+            for result in read_result.analyze_result.read_results:
+                for line in result.lines:
+                    text_lines.append(line.text)
+
+            extracted_text = "\n".join(text_lines)
+            return jsonify({"text": extracted_text})
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run()
